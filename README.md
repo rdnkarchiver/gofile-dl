@@ -1,5 +1,21 @@
 # gofile-dl
 
+## Features
+- Download files and folders (including nested items) from Gofile.
+- Even works with "overloaded" content.
+
+## Installation
+### via [`pipx`](https://packaging.python.org/guides/installing-stand-alone-command-line-tools/) (recommended)
+```
+pipx install gofile-dl
+```
+
+### via [`pip`](https://pip.pypa.io/en/stable/installation/)
+```
+pip install --user gofile-dl
+```
+
+## Usage
 ```
 usage: gofile-dl [-h] [--dry-run] [--flatten] [--output-dir <directory>] [--password <password>] [--token <token>] [--verbose] [--version] link [link ...]
 
