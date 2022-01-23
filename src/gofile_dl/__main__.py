@@ -5,10 +5,10 @@ import os
 from urllib.parse import unquote
 
 import aiohttp
+from gofile import Gofile
 from tqdm import tqdm
 
-import gofile_dl
-from .client.gofile import Gofile
+from gofile_dl import __version__ as VERSION
 
 
 CHUNK_SIZE = 8192  # in bytes
@@ -27,7 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--password', '-p', metavar='<password>', help='password of password-protected files')
     parser.add_argument('--token', '-t', metavar='<token>', help='Gofile account token (guest account will be used if omitted)')
     parser.add_argument('--verbose', '-v', action='store_true', help='increase output verbosity')
-    parser.add_argument('--version', action='version', version='%(prog)s ' + gofile_dl.__version__)
+    parser.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
     parser.add_argument('gofile_links', metavar='link', nargs='+', help='link to content to download (passing multiple links is supported)')
     return parser.parse_args()
 
@@ -95,11 +95,11 @@ def build_targets(client: Gofile, targets: list = [], **kwargs) -> list:
             else:
                 dest_dir = os.path.join(output_dir, content['name'])
 
-            if not kwargs['dry_run']:
-                try:
-                    os.makedirs(dest_dir)
-                except FileExistsError:
-                    pass
+        if not kwargs['dry_run']:
+            try:
+                os.makedirs(dest_dir)
+            except FileExistsError:
+                pass
 
         for _, v in content['contents'].items():
             log.debug(f'v: {v}')
