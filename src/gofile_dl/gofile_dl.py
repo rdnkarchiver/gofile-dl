@@ -2,6 +2,7 @@ import asyncio
 import argparse
 import logging as log
 import os
+from typing import Union
 from urllib.parse import unquote
 
 import aiohttp
@@ -22,21 +23,18 @@ TIMEOUT_READ = 12 * 60 * 60  # 12 hrs * 60 mins * 60 secs
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--dry-run",
-        "--simulate",
-        action="store_true",
-        help="build the download target list but do not download anything",
-    )
-    parser.add_argument(
-        "--flatten",
-        action="store_true",
-        help="save all files in the same directory (only used with --output-dir)",
+        "--input-file", "-i", metavar="<file>", help="file containing Gofile links"
     )
     parser.add_argument(
         "--output-dir",
         "-o",
         metavar="<directory>",
         help="directory in which to save downloaded files",
+    )
+    parser.add_argument(
+        "--flatten",
+        action="store_true",
+        help="save all files in the same directory",
     )
     parser.add_argument(
         "--password",
@@ -51,6 +49,12 @@ def parse_args() -> argparse.Namespace:
         help="Gofile account token (guest account will be used if omitted)",
     )
     parser.add_argument(
+        "--dry-run",
+        "--simulate",
+        action="store_true",
+        help="build the download target list but do not download anything",
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -60,7 +64,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "gofile_links",
         metavar="link",
-        nargs="+",
+        nargs="*",
         help="link to content to download (passing multiple links is supported)",
     )
     return parser.parse_args()
@@ -73,12 +77,13 @@ def setup_logging(verbose: bool) -> None:
     )
 
 
-async def download(sess, url, dest) -> None:
-    file_name = dest.split("/")[-1]
+async def download(sess: aiohttp.ClientSession, url: str, dest: str) -> None:
+    file_name: str = dest.split("/")[-1]
     description = f"{file_name[:MAX_DESCRIPTION_LENGTH]: <{MAX_DESCRIPTION_LENGTH}}"
 
     log.debug(f"downloading {url}")
     async with sess.get(url) as res:
+        res: aiohttp.ClientResponse
         res.raise_for_status()
 
         remote_file_size = int(res.headers.get("content-length", 0))
@@ -91,6 +96,7 @@ async def download(sess, url, dest) -> None:
                 desc=description,
                 unit="B",
                 unit_scale=True,
+                leave=False,
             )
             while True:
                 chunk = await res.content.read(CHUNK_SIZE)
@@ -101,7 +107,7 @@ async def download(sess, url, dest) -> None:
         os.rename(f"{dest}.temp", dest)
 
 
-async def download_all(token: str, targets: list[dict]) -> None:
+async def download_all(token: str, targets: list[dict[str, str]]) -> None:
     connector = aiohttp.TCPConnector(limit_per_host=MAX_CONCURRENT_DOWNLOADS)
     timeout = aiohttp.ClientTimeout(sock_connect=TIMEOUT_CONN, sock_read=TIMEOUT_READ)
     cookies = {
@@ -124,11 +130,18 @@ async def download_all(token: str, targets: list[dict]) -> None:
         ]
 
 
-def build_targets(client: Gofile, targets: list[dict] = [], **kwargs) -> list[dict]:
-    gofile_links = kwargs["gofile_links"]
-    password = kwargs["password"]
-    flatten = kwargs["flatten"]
-    output_dir = kwargs["output_dir"]
+def build_targets(
+    client: Gofile, targets: list[dict[str, str]] = [], **kwargs
+) -> list[dict[str, str]]:
+    gofile_links: list[str] = kwargs["gofile_links"]
+    input_file: str = kwargs["input_file"]
+    password: str = kwargs["password"]
+    flatten: bool = kwargs["flatten"]
+    output_dir: str = kwargs["output_dir"]
+
+    if input_file:
+        with open(input_file, "r") as f:
+            gofile_links += f.read().splitlines()
 
     for link in gofile_links:
         log.debug(f"link: {link}")
@@ -139,12 +152,15 @@ def build_targets(client: Gofile, targets: list[dict] = [], **kwargs) -> list[di
             continue
 
         log.debug(f"content: {content}")
-        dest_dir = content["name"] if content["type"] == "file" else content_id
+        dest_dir: str = content["name"] if content["type"] == "file" else content_id
         if output_dir:
             if flatten:
                 dest_dir = output_dir
             else:
                 dest_dir = os.path.join(output_dir, content["name"])
+        else:
+            if flatten:
+                dest_dir = os.getcwd()
 
         if not kwargs["dry_run"]:
             try:
@@ -152,10 +168,11 @@ def build_targets(client: Gofile, targets: list[dict] = [], **kwargs) -> list[di
             except FileExistsError:
                 pass
 
-        for _, v in content["contents"].items():
-            log.debug(f"v: {v}")
-            if "link" in v:
-                file_url = v["link"] if v["link"] != "overloaded" else v["directLink"]
+        contents: dict[str, dict[str, Union[str, int]]] = content["contents"]
+        for val in contents.values():
+            log.debug(f"val: {val}")
+            if "link" in val:
+                file_url: str = val["link"] if val["link"] != "overloaded" else val["directLink"]
                 file_path = os.path.join(dest_dir, unquote(file_url.split("/")[-1]))
                 targets.append(
                     {
@@ -164,17 +181,16 @@ def build_targets(client: Gofile, targets: list[dict] = [], **kwargs) -> list[di
                     }
                 )
                 log.debug(f"targets: {targets}")
-            if "code" in v:
+            if "code" in val:
                 build_targets(
                     client,
                     targets,
-                    gofile_links=[v["code"]],
+                    gofile_links=[val["code"]],
                     password=password,
                     flatten=flatten,
                     output_dir=dest_dir,
                     dry_run=kwargs["dry_run"],
                 )
-
     return targets
 
 

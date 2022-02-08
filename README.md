@@ -17,21 +17,26 @@ pip install --user gofile-dl
 
 ## Usage
 ```
-usage: gofile-dl [-h] [--dry-run] [--flatten] [--output-dir <directory>] [--password <password>] [--token <token>] [--verbose] [--version] link [link ...]
+$ gofile-dl -h
+usage: gofile-dl [-h] [--input-file <file>] [--output-dir <directory>] [--flatten] [--password <password>] [--token <token>] [--dry-run] [--verbose] [--version]
+                 [link ...]
 
 positional arguments:
-  link
+  link                  link to content to download (passing multiple links is supported)
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
-  --dry-run             Do not download anything.
-  --flatten             Save all files in the same directory. Only used with --output-dir.
+  --input-file <file>, -i <file>
+                        file containing Gofile links
   --output-dir <directory>, -o <directory>
-                        Directory in which to save files. Non-existent directories will be created.
+                        directory in which to save downloaded files
+  --flatten             save all files in the same directory
   --password <password>, -p <password>
-                        Password for password-protected files.
+                        password of password-protected files
   --token <token>, -t <token>
-                        Account token. If not specified, a guest account will be created.
-  --verbose, -v         Increase output verbosity.
+                        Gofile account token (guest account will be used if omitted)
+  --dry-run, --simulate
+                        build the download target list but do not download anything
+  --verbose, -v         increase output verbosity
   --version             show program's version number and exit
 ```
