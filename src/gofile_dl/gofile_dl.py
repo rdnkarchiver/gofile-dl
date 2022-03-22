@@ -2,6 +2,8 @@ import asyncio
 import argparse
 import logging as log
 import os
+from random import choice
+from string import ascii_letters
 from typing import Union
 from urllib.parse import unquote
 
@@ -60,7 +62,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="increase output verbosity",
     )
-    parser.add_argument("--version", action="version", version="%(prog)s " + VERSION)
+    parser.add_argument("--version", "-V", action="version", version="%(prog)s " + VERSION)
     parser.add_argument(
         "gofile_links",
         metavar="link",
@@ -173,7 +175,13 @@ def build_targets(
             log.debug(f"val: {val}")
             if "link" in val:
                 file_url: str = val["link"] if val["link"] != "overloaded" else val["directLink"]
-                file_path = os.path.join(dest_dir, unquote(file_url.split("/")[-1]))
+                file_name, file_ext = os.path.splitext(file_url.split("/")[-1])
+                file_path = os.path.join(
+                    dest_dir,
+                    unquote(
+                        f"{file_name}.{''.join(choice(ascii_letters) for _ in range(8))}{file_ext}"
+                    ),
+                )
                 targets.append(
                     {
                         "url": file_url,
