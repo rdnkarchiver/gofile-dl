@@ -14,12 +14,12 @@ from tqdm import tqdm
 from gofile_dl import __version__ as VERSION
 
 
-CHUNK_SIZE = 8192  # in bytes
+CHUNK_SIZE_BYTES = 8192
 MAX_CONCURRENT_DOWNLOADS = 5
 MAX_DESCRIPTION_LENGTH = 20
 
-TIMEOUT_CONN = 10
-TIMEOUT_READ = 12 * 60 * 60  # 12 hrs * 60 mins * 60 secs
+TIMEOUT_CONN_SECONDS = 10
+TIMEOUT_READ_SECONDS = 12 * 60 * 60  # 12 hrs * 60 mins * 60 secs
 
 
 def parse_args() -> argparse.Namespace:
@@ -101,7 +101,7 @@ async def download(sess: aiohttp.ClientSession, url: str, dest: str) -> None:
                 leave=False,
             )
             while True:
-                chunk = await res.content.read(CHUNK_SIZE)
+                chunk = await res.content.read(CHUNK_SIZE_BYTES)
                 if not chunk:
                     break
                 f.write(chunk)
@@ -111,7 +111,9 @@ async def download(sess: aiohttp.ClientSession, url: str, dest: str) -> None:
 
 async def download_all(token: str, targets: list[dict[str, str]]) -> None:
     connector = aiohttp.TCPConnector(limit_per_host=MAX_CONCURRENT_DOWNLOADS)
-    timeout = aiohttp.ClientTimeout(sock_connect=TIMEOUT_CONN, sock_read=TIMEOUT_READ)
+    timeout = aiohttp.ClientTimeout(
+        sock_connect=TIMEOUT_CONN_SECONDS, sock_read=TIMEOUT_READ_SECONDS
+    )
     cookies = {
         "accountToken": token,
     }
